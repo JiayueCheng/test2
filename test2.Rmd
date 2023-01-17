@@ -1,0 +1,80 @@
+---
+title: "lab1_Problem2_3"
+author: "Jiayue Cheng"
+date: "01/14/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align = "center")
+```
+
+# Load package
+
+```{r warning=FALSE}
+library(tidyverse)
+```
+
+# Problem 2
+
+```{r}
+# Import data
+icd10cm_codes=read.delim("/Users/jennifer/Desktop/Big Data /lab1/icd10cm_codes_2020.txt",header=F,sep = "\t")
+icd_code_reformat <- icd10cm_codes %>%
+  separate(col = V1, into = c("ICD10", "description"), sep = 7)
+head(icd_code_reformat)
+```
+
+```{r}
+# Find a number of different diagnoses for the first chapter
+# if the first three letters are "A00" or "B99"
+Q2_first_chapter1 = icd_code_reformat[grepl("^(A00)", icd_code_reformat$ICD10) | grepl("^(B99)", icd_code_reformat$ICD10), ]
+head(Q2_first_chapter1)
+
+#if the first letters are "A" or "B"
+Q2_first_chapter2 = icd_code_reformat[grepl("^(A)", icd_code_reformat$ICD10) | grepl("^(B)", icd_code_reformat$ICD10), ]
+head(Q2_first_chapter2)
+
+```
+
+
+# Problem 3
+
+```{r}
+# Import data
+inpatient_claims <- read.csv("/Users/jennifer/Desktop/Big Data /lab1/DE1_0_2008_to_2010_Inpatient_Claims_Sample_1.csv",header=T)
+```
+
+```{r}
+# Select only first admission for each patient
+Q3_first_admission <- inpatient_claims %>%
+  group_by(DESYNPUF_ID) %>%
+  summarise(first_admission_date = min(CLM_ADMSN_DT))
+head(Q3_first_admission)
+```
+
+```{r}
+# Find the race distribution of opioid overuse
+beneficiary_summary <- read.csv("/Users/jennifer/Desktop/Big Data /lab1/DE1_0_2008_Beneficiary_Summary_File_Sample_1.csv",header=T)
+both <- merge(inpatient_claims, beneficiary_summary, by.x = "DESYNPUF_ID",by.y = "DESYNPUF_ID")
+
+icd9_opioid=c('30400', '30401', '30402', '30403', '30470', '30471', '30472', '30473', '30550', '30551', '30552', '30553', '96500', '96501','96502','96509','9701','E8500','E8501','E8502', 'E9350','E9351','E9352','E9401')
+
+both$opiod=ifelse( both$ICD9_DGNS_CD_1 %in% icd9_opioid|both$ICD9_DGNS_CD_2 %in% icd9_opioid|both$ICD9_DGNS_CD_3 %in% icd9_opioid|both$ICD9_DGNS_CD_4 %in% icd9_opioid|both$ICD9_DGNS_CD_5 %in% icd9_opioid|both$ICD9_DGNS_CD_6 %in% icd9_opioid|both$ICD9_DGNS_CD_7 %in% icd9_opioid|both$ICD9_DGNS_CD_8 %in% icd9_opioid|both$ICD9_DGNS_CD_9 %in% icd9_opioid |both$ICD9_DGNS_CD_10 %in% icd9_opioid,1,0)
+
+table(both$BENE_RACE_CD)
+
+
+table(both$opiod)
+both_unduplicated=both %>%
+  group_by(DESYNPUF_ID) %>%
+  summarise(opiod_overuse = max(opiod),Race=max(BENE_RACE_CD)) 
+
+Q3_opioid_overuse=both_unduplicated[both_unduplicated$opiod_overuse==1,] %>% 
+  group_by(Race) %>%
+  summarize(n = n()) %>%
+  mutate(prop = round(n/sum(n), 2))  
+Q3_opioid_overuse
+```
+
+According to the result, among the patients with opioid use disorder, 475 people (84%) in category 1, 62 people (11%) in category 2, 17 people (3%) in category 3, 9 people (2%) in category 5.
